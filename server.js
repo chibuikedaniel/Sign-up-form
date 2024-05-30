@@ -72,8 +72,8 @@ app.post('/', (req, res) => {
                 return res.status(500).json({ error: 'Failed to write data file' });
             }
 
-            // res.status(200).json({ message: 'Sign up successful' });
-            res.redirect("/"); // Redirect after successful sign-up
+            // Redirect after successful sign-up
+            res.redirect("/"); 
         });
     });
 });
