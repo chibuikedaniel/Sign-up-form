@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const validator = require('validator');
 const cors = require("cors");
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const port = 3000;
@@ -59,8 +60,9 @@ app.post('/', (req, res) => {
         // Check if the email already exists
         const emailExists = usersData.some(user => user.email === email.trim());
         if (emailExists) {
-            res.status(400).json({ errors: ['Email already exists'] });
-            return;
+            return res.status(400).sendFile(path.join(__dirname, 'error.html'));
+            // res.status(400).json({ errors: ['Email already exists'] });
+            // return;
         }
 
         // Add the new user data to the array
@@ -72,8 +74,12 @@ app.post('/', (req, res) => {
                 return res.status(500).json({ error: 'Failed to write data file' });
             }
 
+            // // Send success response
+            return res.status(200).sendFile(path.join(__dirname, 'success.html'));
+            // res.status(200).json({ message: 'Data successfully saved' });
+
             // Redirect after successful sign-up
-            res.redirect("/"); 
+            res.redirect("/");
         });
     });
 });
