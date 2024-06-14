@@ -1,30 +1,41 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const validator = require('validator');
-const cors = require("cors");
+const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const flash = require("connect-flash");
+const session = require('express-session');
 
 const app = express();
 const port = 3000;
-const url = "http://127.0.0.1:5500/index.html";
 
-// Parse request body
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({ origin: ["http://127.0.0.1:5500/index.html"] }));
+app.use(cors({ origin: "http://127.0.0.1:5500" }));
 app.use(express.static("public"));
 
+app.use(session({
+    secret: 'dracuzi loves to write code',
+    resave: false,
+    saveUninitialized: true
+}));
+app.use(flash());
 
-// Serve the sign-up page
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
+app.use((req, res, next) => {
+    res.locals.success = req.flash('success');
+    res.locals.error = req.flash('error');
+    next();
 });
 
-// Handle form submission
+app.get('/', (req, res) => {
+    res.render("pages/home");
+});
+
 app.post('/', (req, res) => {
     const { firstName, lastName, email, password } = req.body;
-
-    // Validate user input
     const errors = [];
 
     if (!firstName || !validator.isLength(firstName.trim(), { min: 1 })) {
@@ -43,43 +54,40 @@ app.post('/', (req, res) => {
         errors.push('Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character');
     }
 
-    // If there are errors, send them back to the client
     if (errors.length > 0) {
-        res.status(400).json({ errors });
-        return;
+        req.flash('error', errors);
+        return res.redirect('/');
     }
 
-    // Read the existing user data from the JSON file
     fs.readFile('users.json', 'utf-8', (err, data) => {
         if (err && err.code !== 'ENOENT') {
-            return res.status(500).json({ error: 'Failed to read data file' });
+            req.flash('error', 'Failed to read data file');
+            return res.redirect('/');
         }
 
         const usersData = data ? JSON.parse(data) : [];
 
-        // Check if the email already exists
         const emailExists = usersData.some(user => user.email === email.trim());
         if (emailExists) {
-            return res.status(400).sendFile(path.join(__dirname, 'error.html'));
-            // res.status(400).json({ errors: ['Email already exists'] });
-            // return;
+            req.flash('error', 'Email already exists');
+            return res.redirect('/');
         }
 
-        // Add the new user data to the array
-        usersData.push({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), password: password.trim() });
+        usersData.push({
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: email.trim(),
+            password: password.trim()
+        });
 
-        // Write the updated user data back to the JSON file
         fs.writeFile('users.json', JSON.stringify(usersData, null, 2), 'utf-8', (err) => {
             if (err) {
-                return res.status(500).json({ error: 'Failed to write data file' });
+                req.flash('error', 'Failed to write data file');
+                return res.redirect('/');
             }
 
-            // // Send success response
-            return res.status(200).sendFile(path.join(__dirname, 'success.html'));
-            // res.status(200).json({ message: 'Data successfully saved' });
-
-            // Redirect after successful sign-up
-            res.redirect("/");
+            req.flash('success', 'User registered successfully');
+            return res.redirect('/');
         });
     });
 });
